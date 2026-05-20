@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,10 @@ import {
 import { MemberSelect } from "@/components/member-select";
 import { SplitInput, type SplitEntry } from "@/components/split-input";
 import { ReceiptUpload } from "@/components/receipt-upload";
+import {
+  ElectricityBillPanel,
+  type ElectricityBillData,
+} from "@/components/electricity-bill-panel";
 import { createExpense } from "@/lib/data/expenses";
 import { uploadReceipts } from "@/lib/supabase/storage";
 import type { Member } from "@/types/database";
@@ -43,8 +48,69 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
   const [splits, setSplits] = useState<SplitEntry[]>([]);
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [electricityBill, setElectricityBill] =
+    useState<ElectricityBillData | null>(null);
+  const prevReceiptCount = useRef(0);
 
   const totalAmount = parseFloat(amount) || 0;
+
+  async function handleReceiptChange(files: File[]) {
+    setReceiptFiles(files);
+
+    // If a file was removed and we had an electricity bill detected, reset it
+    if (files.length < prevReceiptCount.current && electricityBill !== null) {
+      setElectricityBill(null);
+      setSplits([]);
+    }
+
+    // Only attempt extraction when a new file was added and amount is still empty
+    if (files.length > prevReceiptCount.current && amount === "") {
+      const lastFile = files[files.length - 1];
+      prevReceiptCount.current = files.length;
+      setExtracting(true);
+      try {
+        const fd = new FormData();
+        fd.append("file", lastFile);
+
+        if (lastFile.type === "application/pdf") {
+          // Use richer bill extraction for PDFs — detects electricity bills
+          const res = await fetch("/api/extract-bill", {
+            method: "POST",
+            body: fd,
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.bill_type === "electricity") {
+              setElectricityBill(data as ElectricityBillData);
+              setAmount(String(data.total_amount));
+              setSplitType("custom");
+            } else if (data.amount !== null && data.amount !== undefined) {
+              setAmount(String(data.amount));
+            }
+          }
+        } else {
+          // Image → simple amount extraction
+          const res = await fetch("/api/extract-amount", {
+            method: "POST",
+            body: fd,
+          });
+          if (res.ok) {
+            const { amount: extracted } = await res.json();
+            if (extracted !== null) {
+              setAmount(String(extracted));
+            }
+          }
+        }
+      } catch {
+        // Silently fail — extraction is best-effort
+      } finally {
+        setExtracting(false);
+      }
+    } else {
+      prevReceiptCount.current = files.length;
+    }
+  }
 
   if (members.length === 0) {
     return (
@@ -111,19 +177,31 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
         />
       </div>
 
+      {/* Receipt — shown first so AI can pre-fill the amount */}
+      <div className="space-y-1">
+        <Label>Comprobante</Label>
+        <ReceiptUpload onChange={handleReceiptChange} />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         {/* Amount */}
         <div className="space-y-1">
           <Label>Monto total *</Label>
-          <Input
-            type="number"
-            min="0.01"
-            step="0.01"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
+          <div className="relative">
+            <Input
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={extracting}
+              required
+            />
+            {extracting && (
+              <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
         </div>
 
         {/* Date */}
@@ -155,38 +233,45 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
         />
       </div>
 
-      {/* Receipt */}
-      <div className="space-y-1">
-        <Label>Comprobante</Label>
-        <ReceiptUpload onChange={setReceiptFiles} />
-      </div>
-
-      {/* Split */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <Label>División</Label>
-          <Select
-            value={splitType}
-            onValueChange={(v) => { if (v) setSplitType(v as "equal" | "custom"); }}
-          >
-            <SelectTrigger className="w-52">
-              <SelectValue>{SPLIT_LABELS[splitType]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="equal">Partes iguales</SelectItem>
-              <SelectItem value="custom">Montos personalizados</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <SplitInput
+      {/* Split — electricity mode or manual */}
+      {electricityBill ? (
+        <ElectricityBillPanel
           members={members}
-          total={totalAmount}
-          splitType={splitType}
-          value={splits}
-          onChange={setSplits}
+          billData={electricityBill}
+          onSplitChange={(newSplits, total) => {
+            setSplits(newSplits);
+            setAmount(String(total));
+          }}
         />
-      </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <Label>División</Label>
+            <Select
+              value={splitType}
+              onValueChange={(v) => {
+                if (v) setSplitType(v as "equal" | "custom");
+              }}
+            >
+              <SelectTrigger className="w-52">
+                <SelectValue>{SPLIT_LABELS[splitType]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="equal">Partes iguales</SelectItem>
+                <SelectItem value="custom">Montos personalizados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <SplitInput
+            members={members}
+            total={totalAmount}
+            splitType={splitType}
+            value={splits}
+            onChange={setSplits}
+          />
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>

@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { Providers } from "@/components/providers";
 
-const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const roboto = Roboto({
+  weight: ["300", "400", "500", "700"],
+  variable: "--font-sans",
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "Cuentas Claras — Finca",
+  title: "Cuentas Claras Patrón!",
   description: "Gestión de gastos compartidos de la finca",
 };
 
@@ -16,10 +22,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${geist.variable} h-full antialiased`}>
+    <html
+      lang="es"
+      className={`${roboto.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <body className="min-h-full bg-background text-foreground">
-        {children}
-        <Toaster richColors position="top-right" />
+        <Providers>
+          {children}
+          <Toaster richColors position="top-right" />
+        </Providers>
       </body>
     </html>
   );
