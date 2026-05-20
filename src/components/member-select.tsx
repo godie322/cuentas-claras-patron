@@ -25,6 +25,10 @@ export function MemberSelect({
   exclude = [],
 }: MemberSelectProps) {
   const filtered = members.filter((m) => !exclude.includes(m.id));
+  // Base UI resolves the trigger label from ItemText only after the popup
+  // has been opened at least once. Passing an explicit child to SelectValue
+  // bypasses that lookup and always shows the correct label.
+  const label = members.find((m) => m.id === value)?.name ?? placeholder;
 
   return (
     <Select
@@ -32,7 +36,7 @@ export function MemberSelect({
       onValueChange={(v) => { if (v !== null) onChange(v); }}
     >
       <SelectTrigger>
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder}>{label}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {filtered.map((m) => (

@@ -16,9 +16,14 @@ import {
 import { MemberSelect } from "@/components/member-select";
 import { SplitInput, type SplitEntry } from "@/components/split-input";
 import { ReceiptUpload } from "@/components/receipt-upload";
-import { createExpense, EXPENSE_CATEGORIES } from "@/lib/data/expenses";
+import { createExpense } from "@/lib/data/expenses";
 import { uploadReceipt } from "@/lib/supabase/storage";
 import type { Member } from "@/types/database";
+
+const SPLIT_LABELS: Record<string, string> = {
+  equal: "Partes iguales",
+  custom: "Montos personalizados",
+};
 
 interface ExpenseFormProps {
   members: Member[];
@@ -33,7 +38,6 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [paidBy, setPaidBy] = useState(members[0]?.id ?? "");
-  const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [splitType, setSplitType] = useState<"equal" | "custom">("equal");
   const [splits, setSplits] = useState<SplitEntry[]>([]);
@@ -78,7 +82,6 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
           total_amount: totalAmount,
           date,
           paid_by: paidBy,
-          category: category || undefined,
           notes: notes || undefined,
           split_type: splitType,
           created_by: paidBy,
@@ -98,17 +101,19 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2 space-y-1">
-          <Label>Descripción *</Label>
-          <Input
-            placeholder="Ej: Combustible tractor"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-          />
-        </div>
+      {/* Description */}
+      <div className="space-y-1">
+        <Label>Descripción *</Label>
+        <Input
+          placeholder="Ej: Combustible tractor"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          required
+        />
+      </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        {/* Amount */}
         <div className="space-y-1">
           <Label>Monto total *</Label>
           <Input
@@ -122,6 +127,7 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
           />
         </div>
 
+        {/* Date */}
         <div className="space-y-1">
           <Label>Fecha *</Label>
           <Input
@@ -132,28 +138,14 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
           />
         </div>
 
-        <div className="space-y-1">
+        {/* Paid by */}
+        <div className="col-span-2 space-y-1">
           <Label>Pagado por *</Label>
           <MemberSelect members={members} value={paidBy} onChange={setPaidBy} />
         </div>
-
-        <div className="space-y-1">
-          <Label>Categoría</Label>
-          <Select value={category} onValueChange={(v) => setCategory(v ?? "")}>
-            <SelectTrigger>
-              <SelectValue placeholder="Sin categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              {EXPENSE_CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
+      {/* Notes */}
       <div className="space-y-1">
         <Label>Notas</Label>
         <Textarea
@@ -164,20 +156,22 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
         />
       </div>
 
-      <div className="space-y-2">
+      {/* Receipt */}
+      <div className="space-y-1">
         <Label>Comprobante</Label>
         <ReceiptUpload onFileSelect={setReceiptFile} />
       </div>
 
+      {/* Split */}
       <div className="space-y-2">
-        <div className="flex items-center gap-4">
-          <Label>División del gasto</Label>
+        <div className="flex items-center gap-3">
+          <Label>División</Label>
           <Select
             value={splitType}
             onValueChange={(v) => { if (v) setSplitType(v as "equal" | "custom"); }}
           >
-            <SelectTrigger className="w-44">
-              <SelectValue />
+            <SelectTrigger className="w-52">
+              <SelectValue>{SPLIT_LABELS[splitType]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="equal">Partes iguales</SelectItem>
@@ -185,15 +179,14 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
             </SelectContent>
           </Select>
         </div>
-        {totalAmount > 0 && (
-          <SplitInput
-            members={members}
-            total={totalAmount}
-            splitType={splitType}
-            value={splits}
-            onChange={setSplits}
-          />
-        )}
+
+        <SplitInput
+          members={members}
+          total={totalAmount}
+          splitType={splitType}
+          value={splits}
+          onChange={setSplits}
+        />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

@@ -27,14 +27,17 @@ export function SplitInput({
   value,
   onChange,
 }: SplitInputProps) {
-  const [localSplits, setLocalSplits] = useState<SplitEntry[]>(value);
+  const [localSplits, setLocalSplits] = useState<SplitEntry[]>(() =>
+    members.map((m) => ({ member_id: m.id, amount: 0 }))
+  );
 
+  // Recalculate when switching to equal mode or when total/members change
   useEffect(() => {
-    if (splitType === "equal" && total > 0 && members.length > 0) {
+    if (splitType === "equal") {
+      if (total <= 0 || members.length === 0) return;
       const perPerson = Math.round((total / members.length) * 100) / 100;
       const splits = members.map((m, i) => ({
         member_id: m.id,
-        // last member absorbs rounding difference
         amount:
           i === members.length - 1
             ? Math.round((total - perPerson * (members.length - 1)) * 100) / 100
@@ -46,33 +49,44 @@ export function SplitInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [splitType, total, members.length]);
 
+  // When switching to custom, make sure every member has an entry (default 0)
+  useEffect(() => {
+    if (splitType === "custom") {
+      setLocalSplits((prev) => {
+        const byId = new Map(prev.map((s) => [s.member_id, s.amount]));
+        return members.map((m) => ({
+          member_id: m.id,
+          amount: byId.get(m.id) ?? 0,
+        }));
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitType, members.length]);
+
   function handleCustomChange(memberId: string, raw: string) {
     const amount = parseFloat(raw) || 0;
     const updated = localSplits.map((s) =>
       s.member_id === memberId ? { ...s, amount } : s
     );
-    // init missing members
-    const ids = updated.map((s) => s.member_id);
-    members.forEach((m) => {
-      if (!ids.includes(m.id)) updated.push({ member_id: m.id, amount: 0 });
-    });
     setLocalSplits(updated);
     onChange(updated);
   }
 
   const currentTotal = localSplits.reduce((sum, s) => sum + s.amount, 0);
   const diff = Math.abs(currentTotal - total);
-  const isBalanced = diff < 0.01;
+  const isBalanced = total > 0 && diff < 0.01;
 
   if (splitType === "equal") {
     return (
-      <div className="space-y-1 text-sm text-muted-foreground">
+      <div className="rounded-md border p-3 space-y-1 text-sm">
         {members.map((m) => {
           const split = localSplits.find((s) => s.member_id === m.id);
           return (
             <div key={m.id} className="flex justify-between">
-              <span>{m.name}</span>
-              <span>{split ? formatCurrency(split.amount) : "-"}</span>
+              <span className="text-muted-foreground">{m.name}</span>
+              <span className="font-medium">
+                {split && total > 0 ? formatCurrency(split.amount) : "—"}
+              </span>
             </div>
           );
         })}
@@ -80,38 +94,38 @@ export function SplitInput({
     );
   }
 
+  // Custom mode
   return (
-    <div className="space-y-3">
+    <div className="rounded-md border p-3 space-y-3">
       {members.map((m) => {
         const split = localSplits.find((s) => s.member_id === m.id);
         return (
           <div key={m.id} className="flex items-center gap-3">
-            <Label className="w-32 shrink-0">{m.name}</Label>
+            <Label className="w-32 shrink-0 text-sm">{m.name}</Label>
             <Input
               type="number"
               min={0}
               step="0.01"
               placeholder="0.00"
-              value={split?.amount ?? ""}
+              value={split?.amount === 0 ? "" : (split?.amount ?? "")}
               onChange={(e) => handleCustomChange(m.id, e.target.value)}
-              className="w-32"
+              className="w-36"
             />
           </div>
         );
       })}
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 pt-1 text-sm border-t">
         <span className="text-muted-foreground">
-          Total asignado: {formatCurrency(currentTotal)} / {formatCurrency(total)}
+          Asignado: <strong>{formatCurrency(currentTotal)}</strong>
+          {total > 0 && <> / {formatCurrency(total)}</>}
         </span>
-        {!isBalanced && (
+        {total > 0 && !isBalanced && currentTotal > 0 && (
           <Badge variant="destructive">
-            Diferencia: {formatCurrency(diff)}
+            Falta: {formatCurrency(Math.abs(total - currentTotal))}
           </Badge>
         )}
-        {isBalanced && total > 0 && (
-          <Badge variant="default" className="bg-green-600">
-            Balanceado
-          </Badge>
+        {isBalanced && (
+          <Badge className="bg-green-600 text-white">Balanceado ✓</Badge>
         )}
       </div>
     </div>
