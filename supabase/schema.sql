@@ -76,8 +76,10 @@ create index if not exists idx_payments_date on payments(date);
 create index if not exists idx_payments_from on payments(from_member_id);
 create index if not exists idx_payments_to on payments(to_member_id);
 
--- Seed: initial 3 members (replace with real data)
--- insert into members (name, email, phone) values
---   ('Nombre 1', 'persona1@email.com', '+54911xxxxxxxx'),
---   ('Nombre 2', 'persona2@email.com', '+54911xxxxxxxx'),
---   ('Nombre 3', 'persona3@email.com', '+54911xxxxxxxx');
+-- -------------------------------------------------------
+-- RLS: disable for all tables (no-auth private app)
+-- -------------------------------------------------------
+alter table members disable row level security;
+alter table expenses disable row level security;
+alter table expense_splits disable row level security;
+alter table payments disable row level security;
