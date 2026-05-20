@@ -28,22 +28,21 @@ export function ReceiptUpload({ onChange }: ReceiptUploadProps) {
         : null,
     }));
 
-    setEntries((prev) => {
-      const updated = [...prev, ...newEntries];
-      onChange(updated.map((e) => e.file));
-      return updated;
-    });
+    // Compute next state first, then update both independently.
+    // Calling onChange() inside a setState updater triggers a
+    // "setState during render" warning because React may invoke
+    // updaters during the render phase in concurrent mode.
+    const updated = [...entries, ...newEntries];
+    setEntries(updated);
+    onChange(updated.map((en) => en.file));
 
-    // Reset input so the same file can be picked again if needed
     e.target.value = "";
   }
 
   function handleRemove(index: number) {
-    setEntries((prev) => {
-      const updated = prev.filter((_, i) => i !== index);
-      onChange(updated.map((e) => e.file));
-      return updated;
-    });
+    const updated = entries.filter((_, i) => i !== index);
+    setEntries(updated);
+    onChange(updated.map((en) => en.file));
   }
 
   return (
