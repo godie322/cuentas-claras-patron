@@ -83,3 +83,26 @@ alter table members disable row level security;
 alter table expenses disable row level security;
 alter table expense_splits disable row level security;
 alter table payments disable row level security;
+
+-- -------------------------------------------------------
+-- Storage: allow anon full access to receipts bucket
+-- Storage objects have their own RLS separate from tables.
+-- -------------------------------------------------------
+
+-- Make bucket public so URLs are readable without a token
+update storage.buckets set public = true where id = 'receipts';
+
+-- Allow anon to upload
+create policy "anon can upload receipts"
+  on storage.objects for insert to anon
+  with check (bucket_id = 'receipts');
+
+-- Allow anon to read (also covered by public bucket, but explicit is safer)
+create policy "anon can read receipts"
+  on storage.objects for select to anon
+  using (bucket_id = 'receipts');
+
+-- Allow anon to delete (for receipt removal)
+create policy "anon can delete receipts"
+  on storage.objects for delete to anon
+  using (bucket_id = 'receipts');
