@@ -1,65 +1,425 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Trash2, Eye } from "lucide-react";
+import { ExpenseForm } from "@/components/expense-form";
+import { PaymentForm } from "@/components/payment-form";
+import { getMembers, getMemberBalances } from "@/lib/data/members";
+import { getExpenses, deleteExpense } from "@/lib/data/expenses";
+import { getPayments, deletePayment } from "@/lib/data/payments";
+import {
+  formatCurrency,
+  formatDate,
+  currentYear,
+  getYearRange,
+} from "@/lib/format";
+import type {
+  Member,
+  MemberBalance,
+  ExpenseWithSplits,
+  PaymentWithMembers,
+} from "@/types/database";
+import { toast } from "sonner";
+
+// For demo purposes, first member is the "current user"
+// In a real app this would come from Supabase Auth
+const DEMO_MEMBER_INDEX = 0;
 
 export default function Home() {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [balances, setBalances] = useState<MemberBalance[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseWithSplits[]>([]);
+  const [payments, setPayments] = useState<PaymentWithMembers[]>([]);
+  const [year, setYear] = useState(currentYear());
+  const [loading, setLoading] = useState(true);
+
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+
+  const currentMember = members[DEMO_MEMBER_INDEX];
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [m, b, e, p] = await Promise.all([
+        getMembers(),
+        getMemberBalances(),
+        getExpenses(year),
+        getPayments(year),
+      ]);
+      setMembers(m);
+      setBalances(b);
+      setExpenses(e);
+      setPayments(p);
+    } catch (err) {
+      toast.error("Error al cargar los datos");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [year]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function handleDeleteExpense(id: string) {
+    if (!confirm("¿Eliminar este gasto?")) return;
+    try {
+      await deleteExpense(id);
+      toast.success("Gasto eliminado");
+      load();
+    } catch {
+      toast.error("Error al eliminar");
+    }
+  }
+
+  async function handleDeletePayment(id: string) {
+    if (!confirm("¿Eliminar este pago?")) return;
+    try {
+      await deletePayment(id);
+      toast.success("Pago eliminado");
+      load();
+    } catch {
+      toast.error("Error al eliminar");
+    }
+  }
+
+  const totalExpenses = expenses.reduce((s, e) => s + e.total_amount, 0);
+  const totalPayments = payments.reduce((s, p) => s + p.amount, 0);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Cuentas Claras 🌾</h1>
+          <p className="text-sm text-muted-foreground">Gastos de la finca</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+        <Select
+          value={String(year)}
+          onValueChange={(v) => { if (v) setYear(Number(v)); }}
+        >
+          <SelectTrigger className="w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {getYearRange().map((y) => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Balance cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {balances.map((b) => (
+          <Card key={b.member_id}>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {b.member_name}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                className={`text-2xl font-bold ${
+                  b.net_balance >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {formatCurrency(b.net_balance)}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                <div>Pagó: {formatCurrency(b.total_paid)}</div>
+                <div>Le corresponde: {formatCurrency(b.total_owed)}</div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Summary */}
+      <div className="flex gap-4 text-sm text-muted-foreground">
+        <span>
+          Gastos {year}:{" "}
+          <strong className="text-foreground">
+            {formatCurrency(totalExpenses)}
+          </strong>
+        </span>
+        <span>
+          Pagos registrados:{" "}
+          <strong className="text-foreground">
+            {formatCurrency(totalPayments)}
+          </strong>
+        </span>
+      </div>
+
+      {/* Main tabs */}
+      <Tabs defaultValue="expenses">
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="expenses">
+              Gastos{" "}
+              <Badge variant="secondary" className="ml-1">
+                {expenses.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="payments">
+              Pagos{" "}
+              <Badge variant="secondary" className="ml-1">
+                {payments.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPaymentDialogOpen(true)}
+              disabled={members.length < 2}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Pago
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setExpenseDialogOpen(true)}
+              disabled={members.length === 0}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Gasto
+            </Button>
+          </div>
+        </div>
+
+        {/* Expenses tab */}
+        <TabsContent value="expenses">
+          {loading ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              Cargando...
+            </p>
+          ) : expenses.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No hay gastos en {year}
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Pagado por</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Tu parte</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenses.map((e) => {
+                  const myShare = currentMember
+                    ? e.splits.find(
+                        (s) => s.member_id === currentMember.id
+                      )?.amount
+                    : undefined;
+                  return (
+                    <TableRow key={e.id}>
+                      <TableCell className="text-sm">
+                        {formatDate(e.date)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{e.description}</div>
+                        {e.notes && (
+                          <div className="text-xs text-muted-foreground">
+                            {e.notes}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {e.category && (
+                          <Badge variant="outline">{e.category}</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {e.paid_by_member?.name}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(e.total_amount)}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {myShare !== undefined
+                          ? formatCurrency(myShare)
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 justify-end">
+                          {e.receipt_url && (
+                            <a
+                              href={e.receipt_url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                            </a>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => handleDeleteExpense(e.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+
+        {/* Payments tab */}
+        <TabsContent value="payments">
+          {loading ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              Cargando...
+            </p>
+          ) : payments.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No hay pagos en {year}
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>De</TableHead>
+                  <TableHead>Para</TableHead>
+                  <TableHead>Notas</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payments.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="text-sm">
+                      {formatDate(p.date)}
+                    </TableCell>
+                    <TableCell>{p.from_member?.name}</TableCell>
+                    <TableCell>{p.to_member?.name}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {p.notes}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(p.amount)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 justify-end">
+                        {p.receipt_url && (
+                          <a
+                            href={p.receipt_url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </a>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => handleDeletePayment(p.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Expense dialog */}
+      <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nuevo gasto</DialogTitle>
+          </DialogHeader>
+          {currentMember && (
+            <ExpenseForm
+              members={members}
+              currentMemberId={currentMember.id}
+              onSuccess={() => {
+                setExpenseDialogOpen(false);
+                load();
+              }}
+              onCancel={() => setExpenseDialogOpen(false)}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Registrar pago</DialogTitle>
+          </DialogHeader>
+          {currentMember && (
+            <PaymentForm
+              members={members}
+              currentMemberId={currentMember.id}
+              onSuccess={() => {
+                setPaymentDialogOpen(false);
+                load();
+              }}
+              onCancel={() => setPaymentDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
