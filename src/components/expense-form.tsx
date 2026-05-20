@@ -17,7 +17,7 @@ import { MemberSelect } from "@/components/member-select";
 import { SplitInput, type SplitEntry } from "@/components/split-input";
 import { ReceiptUpload } from "@/components/receipt-upload";
 import { createExpense } from "@/lib/data/expenses";
-import { uploadReceipt } from "@/lib/supabase/storage";
+import { uploadReceipts } from "@/lib/supabase/storage";
 import type { Member } from "@/types/database";
 
 const SPLIT_LABELS: Record<string, string> = {
@@ -41,7 +41,7 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
   const [notes, setNotes] = useState("");
   const [splitType, setSplitType] = useState<"equal" | "custom">("equal");
   const [splits, setSplits] = useState<SplitEntry[]>([]);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
   const totalAmount = parseFloat(amount) || 0;
@@ -72,10 +72,9 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
 
     setLoading(true);
     try {
-      let receipt_url: string | undefined;
-      if (receiptFile) {
-        receipt_url = await uploadReceipt(receiptFile, "expenses");
-      }
+      const receipt_urls = receiptFiles.length
+        ? await uploadReceipts(receiptFiles, "expenses")
+        : undefined;
       await createExpense(
         {
           description,
@@ -85,7 +84,7 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
           notes: notes || undefined,
           split_type: splitType,
           created_by: paidBy,
-          receipt_url,
+          receipt_urls,
         },
         splits
       );
@@ -159,7 +158,7 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
       {/* Receipt */}
       <div className="space-y-1">
         <Label>Comprobante</Label>
-        <ReceiptUpload onFileSelect={setReceiptFile} />
+        <ReceiptUpload onChange={setReceiptFiles} />
       </div>
 
       {/* Split */}

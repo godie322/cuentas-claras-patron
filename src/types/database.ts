@@ -29,7 +29,7 @@ export interface Database {
           date: string;
           paid_by: string;
           category: string | null;
-          receipt_url: string | null;
+          receipt_urls: string[];
           notes: string | null;
           split_type: "equal" | "custom";
           created_at: string;
@@ -55,7 +55,7 @@ export interface Database {
           to_member_id: string;
           amount: number;
           date: string;
-          receipt_url: string | null;
+          receipt_urls: string[];
           notes: string | null;
           created_at: string;
           created_by: string;

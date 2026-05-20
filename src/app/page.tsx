@@ -263,13 +263,13 @@ export default function Home() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 justify-end">
-                        {e.receipt_url && (
-                          <a href={e.receipt_url} target="_blank" rel="noreferrer">
+                        {e.receipt_urls?.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noreferrer">
                             <Button variant="ghost" size="icon" className="h-7 w-7">
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </a>
-                        )}
+                        ))}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -321,13 +321,13 @@ export default function Home() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 justify-end">
-                        {p.receipt_url && (
-                          <a href={p.receipt_url} target="_blank" rel="noreferrer">
+                        {p.receipt_urls?.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noreferrer">
                             <Button variant="ghost" size="icon" className="h-7 w-7">
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </a>
-                        )}
+                        ))}
                         <Button
                           variant="ghost"
                           size="icon"

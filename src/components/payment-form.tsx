@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MemberSelect } from "@/components/member-select";
 import { ReceiptUpload } from "@/components/receipt-upload";
 import { createPayment } from "@/lib/data/payments";
-import { uploadReceipt } from "@/lib/supabase/storage";
+import { uploadReceipts } from "@/lib/supabase/storage";
 import type { Member } from "@/types/database";
 
 interface PaymentFormProps {
@@ -26,7 +26,7 @@ export function PaymentForm({ members, onSuccess, onCancel }: PaymentFormProps) 
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
   if (members.length < 2) {
@@ -51,10 +51,9 @@ export function PaymentForm({ members, onSuccess, onCancel }: PaymentFormProps) 
 
     setLoading(true);
     try {
-      let receipt_url: string | undefined;
-      if (receiptFile) {
-        receipt_url = await uploadReceipt(receiptFile, "payments");
-      }
+      const receipt_urls = receiptFiles.length
+        ? await uploadReceipts(receiptFiles, "payments")
+        : undefined;
       await createPayment({
         from_member_id: fromMember,
         to_member_id: toMember,
@@ -62,7 +61,7 @@ export function PaymentForm({ members, onSuccess, onCancel }: PaymentFormProps) 
         date,
         notes: notes || undefined,
         created_by: fromMember,
-        receipt_url,
+        receipt_urls,
       });
       toast.success("Pago registrado");
       onSuccess();
@@ -134,7 +133,7 @@ export function PaymentForm({ members, onSuccess, onCancel }: PaymentFormProps) 
 
       <div className="space-y-2">
         <Label>Comprobante</Label>
-        <ReceiptUpload onFileSelect={setReceiptFile} />
+        <ReceiptUpload onChange={setReceiptFiles} />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

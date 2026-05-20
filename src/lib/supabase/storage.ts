@@ -20,6 +20,13 @@ export async function uploadReceipt(
   return data.publicUrl;
 }
 
+export async function uploadReceipts(
+  files: File[],
+  folder: "expenses" | "payments"
+): Promise<string[]> {
+  return Promise.all(files.map((f) => uploadReceipt(f, folder)));
+}
+
 export async function deleteReceipt(url: string): Promise<void> {
   const supabase = createClient();
   const path = url.split(`/${BUCKET}/`)[1];

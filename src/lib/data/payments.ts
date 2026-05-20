@@ -29,7 +29,7 @@ export async function createPayment(payment: {
   date: string;
   notes?: string;
   created_by: string;
-  receipt_url?: string;
+  receipt_urls?: string[];
 }): Promise<void> {
   const supabase = createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

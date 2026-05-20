@@ -28,11 +28,10 @@ export async function createExpense(
     total_amount: number;
     date: string;
     paid_by: string;
-    category?: string;
     notes?: string;
     split_type: "equal" | "custom";
     created_by: string;
-    receipt_url?: string;
+    receipt_urls?: string[];
   },
   splits: { member_id: string; amount: number }[]
 ): Promise<Expense> {
