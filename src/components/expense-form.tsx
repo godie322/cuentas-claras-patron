@@ -22,23 +22,17 @@ import type { Member } from "@/types/database";
 
 interface ExpenseFormProps {
   members: Member[];
-  currentMemberId: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function ExpenseForm({
-  members,
-  currentMemberId,
-  onSuccess,
-  onCancel,
-}: ExpenseFormProps) {
+export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) {
   const today = new Date().toISOString().split("T")[0];
 
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
-  const [paidBy, setPaidBy] = useState(currentMemberId);
+  const [paidBy, setPaidBy] = useState(members[0]?.id ?? "");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [splitType, setSplitType] = useState<"equal" | "custom">("equal");
@@ -47,6 +41,14 @@ export function ExpenseForm({
   const [loading, setLoading] = useState(false);
 
   const totalAmount = parseFloat(amount) || 0;
+
+  if (members.length === 0) {
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground">
+        Primero agregá miembros desde la pestaña <strong>Miembros</strong>.
+      </p>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -79,7 +81,7 @@ export function ExpenseForm({
           category: category || undefined,
           notes: notes || undefined,
           split_type: splitType,
-          created_by: currentMemberId,
+          created_by: paidBy,
           receipt_url,
         },
         splits
@@ -132,11 +134,7 @@ export function ExpenseForm({
 
         <div className="space-y-1">
           <Label>Pagado por *</Label>
-          <MemberSelect
-            members={members}
-            value={paidBy}
-            onChange={setPaidBy}
-          />
+          <MemberSelect members={members} value={paidBy} onChange={setPaidBy} />
         </div>
 
         <div className="space-y-1">
@@ -178,7 +176,7 @@ export function ExpenseForm({
             value={splitType}
             onValueChange={(v) => { if (v) setSplitType(v as "equal" | "custom"); }}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

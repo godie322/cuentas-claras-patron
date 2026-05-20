@@ -14,26 +14,29 @@ import type { Member } from "@/types/database";
 
 interface PaymentFormProps {
   members: Member[];
-  currentMemberId: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function PaymentForm({
-  members,
-  currentMemberId,
-  onSuccess,
-  onCancel,
-}: PaymentFormProps) {
+export function PaymentForm({ members, onSuccess, onCancel }: PaymentFormProps) {
   const today = new Date().toISOString().split("T")[0];
 
-  const [fromMember, setFromMember] = useState(currentMemberId);
-  const [toMember, setToMember] = useState("");
+  const [fromMember, setFromMember] = useState(members[0]?.id ?? "");
+  const [toMember, setToMember] = useState(members[1]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+
+  if (members.length < 2) {
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground">
+        Necesitás al menos 2 miembros para registrar un pago. Agregá miembros
+        desde la pestaña <strong>Miembros</strong>.
+      </p>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +61,7 @@ export function PaymentForm({
         amount: parseFloat(amount),
         date,
         notes: notes || undefined,
-        created_by: currentMemberId,
+        created_by: fromMember,
         receipt_url,
       });
       toast.success("Pago registrado");

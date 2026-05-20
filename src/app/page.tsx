@@ -26,9 +26,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Eye } from "lucide-react";
+import { Plus, Trash2, Eye, Pencil } from "lucide-react";
 import { ExpenseForm } from "@/components/expense-form";
 import { PaymentForm } from "@/components/payment-form";
+import { MemberForm } from "@/components/member-form";
 import { getMembers, getMemberBalances } from "@/lib/data/members";
 import { getExpenses, deleteExpense } from "@/lib/data/expenses";
 import { getPayments, deletePayment } from "@/lib/data/payments";
@@ -46,10 +47,6 @@ import type {
 } from "@/types/database";
 import { toast } from "sonner";
 
-// For demo purposes, first member is the "current user"
-// In a real app this would come from Supabase Auth
-const DEMO_MEMBER_INDEX = 0;
-
 export default function Home() {
   const [members, setMembers] = useState<Member[]>([]);
   const [balances, setBalances] = useState<MemberBalance[]>([]);
@@ -60,8 +57,8 @@ export default function Home() {
 
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-
-  const currentMember = members[DEMO_MEMBER_INDEX];
+  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | undefined>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,7 +74,7 @@ export default function Home() {
       setExpenses(e);
       setPayments(p);
     } catch (err) {
-      toast.error("Error al cargar los datos");
+      toast.error("Error al cargar los datos. Verificá la conexión con Supabase.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -110,6 +107,16 @@ export default function Home() {
     }
   }
 
+  function openEditMember(member: Member) {
+    setEditingMember(member);
+    setMemberDialogOpen(true);
+  }
+
+  function openNewMember() {
+    setEditingMember(undefined);
+    setMemberDialogOpen(true);
+  }
+
   const totalExpenses = expenses.reduce((s, e) => s + e.total_amount, 0);
   const totalPayments = payments.reduce((s, p) => s + p.amount, 0);
 
@@ -139,46 +146,46 @@ export default function Home() {
       </div>
 
       {/* Balance cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {balances.map((b) => (
-          <Card key={b.member_id}>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {b.member_name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`text-2xl font-bold ${
-                  b.net_balance >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {formatCurrency(b.net_balance)}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                <div>Pagó: {formatCurrency(b.total_paid)}</div>
-                <div>Le corresponde: {formatCurrency(b.total_owed)}</div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {balances.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {balances.map((b) => (
+            <Card key={b.member_id}>
+              <CardHeader className="pb-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {b.member_name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div
+                  className={`text-2xl font-bold ${
+                    b.net_balance >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {formatCurrency(b.net_balance)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                  <div>Pagó: {formatCurrency(b.total_paid)}</div>
+                  <div>Le corresponde: {formatCurrency(b.total_owed)}</div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Summary */}
-      <div className="flex gap-4 text-sm text-muted-foreground">
-        <span>
-          Gastos {year}:{" "}
-          <strong className="text-foreground">
-            {formatCurrency(totalExpenses)}
-          </strong>
-        </span>
-        <span>
-          Pagos registrados:{" "}
-          <strong className="text-foreground">
-            {formatCurrency(totalPayments)}
-          </strong>
-        </span>
-      </div>
+      {(totalExpenses > 0 || totalPayments > 0) && (
+        <div className="flex gap-4 text-sm text-muted-foreground">
+          <span>
+            Gastos {year}:{" "}
+            <strong className="text-foreground">{formatCurrency(totalExpenses)}</strong>
+          </span>
+          <span>
+            Pagos:{" "}
+            <strong className="text-foreground">{formatCurrency(totalPayments)}</strong>
+          </span>
+        </div>
+      )}
 
       {/* Main tabs */}
       <Tabs defaultValue="expenses">
@@ -196,21 +203,22 @@ export default function Home() {
                 {payments.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="members">
+              Miembros{" "}
+              <Badge variant="secondary" className="ml-1">
+                {members.length}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
           <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
               onClick={() => setPaymentDialogOpen(true)}
-              disabled={members.length < 2}
             >
               <Plus className="h-4 w-4 mr-1" /> Pago
             </Button>
-            <Button
-              size="sm"
-              onClick={() => setExpenseDialogOpen(true)}
-              disabled={members.length === 0}
-            >
+            <Button size="sm" onClick={() => setExpenseDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-1" /> Gasto
             </Button>
           </div>
@@ -219,9 +227,7 @@ export default function Home() {
         {/* Expenses tab */}
         <TabsContent value="expenses">
           {loading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              Cargando...
-            </p>
+            <p className="text-sm text-muted-foreground py-8 text-center">Cargando...</p>
           ) : expenses.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
               No hay gastos en {year}
@@ -235,76 +241,47 @@ export default function Home() {
                   <TableHead>Categoría</TableHead>
                   <TableHead>Pagado por</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Tu parte</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {expenses.map((e) => {
-                  const myShare = currentMember
-                    ? e.splits.find(
-                        (s) => s.member_id === currentMember.id
-                      )?.amount
-                    : undefined;
-                  return (
-                    <TableRow key={e.id}>
-                      <TableCell className="text-sm">
-                        {formatDate(e.date)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{e.description}</div>
-                        {e.notes && (
-                          <div className="text-xs text-muted-foreground">
-                            {e.notes}
-                          </div>
+                {expenses.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell className="text-sm">{formatDate(e.date)}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{e.description}</div>
+                      {e.notes && (
+                        <div className="text-xs text-muted-foreground">{e.notes}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {e.category && <Badge variant="outline">{e.category}</Badge>}
+                    </TableCell>
+                    <TableCell className="text-sm">{e.paid_by_member?.name}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(e.total_amount)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 justify-end">
+                        {e.receipt_url && (
+                          <a href={e.receipt_url} target="_blank" rel="noreferrer">
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </a>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        {e.category && (
-                          <Badge variant="outline">{e.category}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {e.paid_by_member?.name}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(e.total_amount)}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {myShare !== undefined
-                          ? formatCurrency(myShare)
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 justify-end">
-                          {e.receipt_url && (
-                            <a
-                              href={e.receipt_url}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                            </a>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive"
-                            onClick={() => handleDeleteExpense(e.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => handleDeleteExpense(e.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
@@ -313,9 +290,7 @@ export default function Home() {
         {/* Payments tab */}
         <TabsContent value="payments">
           {loading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              Cargando...
-            </p>
+            <p className="text-sm text-muted-foreground py-8 text-center">Cargando...</p>
           ) : payments.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
               No hay pagos en {year}
@@ -335,9 +310,7 @@ export default function Home() {
               <TableBody>
                 {payments.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="text-sm">
-                      {formatDate(p.date)}
-                    </TableCell>
+                    <TableCell className="text-sm">{formatDate(p.date)}</TableCell>
                     <TableCell>{p.from_member?.name}</TableCell>
                     <TableCell>{p.to_member?.name}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -349,16 +322,8 @@ export default function Home() {
                     <TableCell>
                       <div className="flex items-center gap-1 justify-end">
                         {p.receipt_url && (
-                          <a
-                            href={p.receipt_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                            >
+                          <a href={p.receipt_url} target="_blank" rel="noreferrer">
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </a>
@@ -379,6 +344,50 @@ export default function Home() {
             </Table>
           )}
         </TabsContent>
+
+        {/* Members tab */}
+        <TabsContent value="members">
+          <div className="flex justify-end mb-4">
+            <Button size="sm" onClick={openNewMember}>
+              <Plus className="h-4 w-4 mr-1" /> Agregar miembro
+            </Button>
+          </div>
+          {members.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No hay miembros. Agregá los participantes de la finca.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">{m.name}</TableCell>
+                    <TableCell className="text-sm">{m.email}</TableCell>
+                    <TableCell className="text-sm">{m.phone ?? "—"}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => openEditMember(m)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* Expense dialog */}
@@ -387,17 +396,11 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Nuevo gasto</DialogTitle>
           </DialogHeader>
-          {currentMember && (
-            <ExpenseForm
-              members={members}
-              currentMemberId={currentMember.id}
-              onSuccess={() => {
-                setExpenseDialogOpen(false);
-                load();
-              }}
-              onCancel={() => setExpenseDialogOpen(false)}
-            />
-          )}
+          <ExpenseForm
+            members={members}
+            onSuccess={() => { setExpenseDialogOpen(false); load(); }}
+            onCancel={() => setExpenseDialogOpen(false)}
+          />
         </DialogContent>
       </Dialog>
 
@@ -407,17 +410,27 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Registrar pago</DialogTitle>
           </DialogHeader>
-          {currentMember && (
-            <PaymentForm
-              members={members}
-              currentMemberId={currentMember.id}
-              onSuccess={() => {
-                setPaymentDialogOpen(false);
-                load();
-              }}
-              onCancel={() => setPaymentDialogOpen(false)}
-            />
-          )}
+          <PaymentForm
+            members={members}
+            onSuccess={() => { setPaymentDialogOpen(false); load(); }}
+            onCancel={() => setPaymentDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Member dialog */}
+      <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingMember ? "Editar miembro" : "Nuevo miembro"}
+            </DialogTitle>
+          </DialogHeader>
+          <MemberForm
+            existing={editingMember}
+            onSuccess={() => { setMemberDialogOpen(false); load(); }}
+            onCancel={() => setMemberDialogOpen(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>
