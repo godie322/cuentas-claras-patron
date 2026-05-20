@@ -47,26 +47,46 @@ create table if not exists payments (
 );
 
 -- View: net balance per member
--- net_balance > 0 means others owe this member
--- net_balance < 0 means this member owes others
+-- net_balance > 0 → others owe this member
+-- net_balance < 0 → this member owes others
+--
+-- Formula:
+--   net = (paid in expenses) - (share of expenses)
+--       + (payments sent out)    ← reduces own debt
+--       - (payments received)    ← reduces what others owe you
 create or replace view member_balances as
 select
-  m.id as member_id,
+  m.id   as member_id,
   m.name as member_name,
-  coalesce(paid.total, 0) as total_paid,
-  coalesce(owed.total, 0) as total_owed,
-  coalesce(paid.total, 0) - coalesce(owed.total, 0) as net_balance
+  coalesce(paid.total,  0) as total_paid,
+  coalesce(owed.total,  0) as total_owed,
+  coalesce(paid.total,  0)
+    - coalesce(owed.total,  0)
+    + coalesce(pmade.total, 0)
+    - coalesce(precv.total, 0) as net_balance
 from members m
 left join (
   select paid_by as member_id, sum(total_amount) as total
   from expenses
   group by paid_by
-) paid on paid.member_id = m.id
+) paid  on paid.member_id  = m.id
 left join (
   select member_id, sum(amount) as total
   from expense_splits
   group by member_id
-) owed on owed.member_id = m.id;
+) owed  on owed.member_id  = m.id
+left join (
+  -- payments this member sent (they're settling a debt → improves balance)
+  select from_member_id as member_id, sum(amount) as total
+  from payments
+  group by from_member_id
+) pmade on pmade.member_id = m.id
+left join (
+  -- payments this member received (debt owed to them was reduced)
+  select to_member_id as member_id, sum(amount) as total
+  from payments
+  group by to_member_id
+) precv on precv.member_id = m.id;
 
 -- Indexes
 create index if not exists idx_expenses_date on expenses(date);
