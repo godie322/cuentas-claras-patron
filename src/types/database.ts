@@ -63,6 +63,15 @@ export interface Database {
         Insert: Omit<Database["public"]["Tables"]["payments"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["payments"]["Insert"]>;
       };
+      recurring_expenses: {
+        Row: {
+          id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["recurring_expenses"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["recurring_expenses"]["Insert"]>;
+      };
     };
     Views: {
       member_balances: {
@@ -86,6 +95,7 @@ export type Expense = Database["public"]["Tables"]["expenses"]["Row"];
 export type ExpenseSplit = Database["public"]["Tables"]["expense_splits"]["Row"];
 export type Payment = Database["public"]["Tables"]["payments"]["Row"];
 export type MemberBalance = Database["public"]["Views"]["member_balances"]["Row"];
+export type RecurringExpense = Database["public"]["Tables"]["recurring_expenses"]["Row"];
 
 export type ExpenseWithSplits = Expense & {
   splits: (ExpenseSplit & { member: Member })[];

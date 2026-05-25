@@ -23,7 +23,9 @@ import {
 } from "@/components/electricity-bill-panel";
 import { createExpense } from "@/lib/data/expenses";
 import { uploadReceipts } from "@/lib/supabase/storage";
-import type { Member } from "@/types/database";
+import type { Member, RecurringExpense } from "@/types/database";
+
+const OTHER_VALUE = "__other__";
 
 const SPLIT_LABELS: Record<string, string> = {
   equal: "Partes iguales",
@@ -33,14 +35,20 @@ const SPLIT_LABELS: Record<string, string> = {
 
 interface ExpenseFormProps {
   members: Member[];
+  recurringExpenses: RecurringExpense[];
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) {
+export function ExpenseForm({ members, recurringExpenses, onSuccess, onCancel }: ExpenseFormProps) {
   const today = new Date().toISOString().split("T")[0];
 
-  const [description, setDescription] = useState("");
+  const [descriptionSource, setDescriptionSource] = useState<string>(
+    recurringExpenses.length > 0 ? recurringExpenses[0].id : OTHER_VALUE
+  );
+  const [description, setDescription] = useState(
+    recurringExpenses.length > 0 ? recurringExpenses[0].name : ""
+  );
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [paidBy, setPaidBy] = useState(members[0]?.id ?? "");
@@ -170,12 +178,55 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
       {/* Description */}
       <div className="space-y-1">
         <Label>Descripción *</Label>
-        <Input
-          placeholder="Ej: Combustible tractor"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-        />
+        {recurringExpenses.length > 0 ? (
+          <div className="space-y-2">
+            <Select
+              value={descriptionSource}
+              onValueChange={(v) => {
+                if (!v) return;
+                setDescriptionSource(v);
+                if (v !== OTHER_VALUE) {
+                  const item = recurringExpenses.find((r) => r.id === v);
+                  setDescription(item?.name ?? "");
+                } else {
+                  setDescription("");
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue>
+                  {descriptionSource === OTHER_VALUE
+                    ? "Otro"
+                    : (recurringExpenses.find((r) => r.id === descriptionSource)?.name ?? "Seleccionar...")}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {recurringExpenses.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value={OTHER_VALUE}>Otro</SelectItem>
+              </SelectContent>
+            </Select>
+            {descriptionSource === OTHER_VALUE && (
+              <Input
+                placeholder="Ej: Combustible tractor"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                required
+                autoFocus
+              />
+            )}
+          </div>
+        ) : (
+          <Input
+            placeholder="Ej: Combustible tractor"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+          />
+        )}
       </div>
 
       {/* Receipt — shown first so AI can pre-fill the amount */}

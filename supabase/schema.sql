@@ -96,6 +96,13 @@ create index if not exists idx_payments_date on payments(date);
 create index if not exists idx_payments_from on payments(from_member_id);
 create index if not exists idx_payments_to on payments(to_member_id);
 
+-- Recurring expenses catalogue (named items for the expense form dropdown)
+create table if not exists recurring_expenses (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz default now()
+);
+
 -- -------------------------------------------------------
 -- RLS: disable for all tables (no-auth private app)
 -- -------------------------------------------------------
@@ -103,6 +110,7 @@ alter table members disable row level security;
 alter table expenses disable row level security;
 alter table expense_splits disable row level security;
 alter table payments disable row level security;
+alter table recurring_expenses disable row level security;
 
 -- -------------------------------------------------------
 -- Storage: allow anon full access to receipts bucket

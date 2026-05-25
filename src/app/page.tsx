@@ -28,12 +28,18 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Eye, Pencil, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
+import { Input } from "@/components/ui/input";
 import { ExpenseForm } from "@/components/expense-form";
 import { PaymentForm } from "@/components/payment-form";
 import { MemberForm } from "@/components/member-form";
 import { getMembers, getMemberBalances } from "@/lib/data/members";
 import { getExpenses, deleteExpense } from "@/lib/data/expenses";
 import { getPayments, deletePayment } from "@/lib/data/payments";
+import {
+  getRecurringExpenses,
+  createRecurringExpense,
+  deleteRecurringExpense,
+} from "@/lib/data/recurring-expenses";
 import {
   formatCurrency,
   formatDate,
@@ -45,6 +51,7 @@ import type {
   MemberBalance,
   ExpenseWithSplits,
   PaymentWithMembers,
+  RecurringExpense,
 } from "@/types/database";
 import { toast } from "sonner";
 
@@ -53,6 +60,9 @@ export default function Home() {
   const [balances, setBalances] = useState<MemberBalance[]>([]);
   const [expenses, setExpenses] = useState<ExpenseWithSplits[]>([]);
   const [payments, setPayments] = useState<PaymentWithMembers[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+  const [newRecurringName, setNewRecurringName] = useState("");
+  const [savingRecurring, setSavingRecurring] = useState(false);
   const [year, setYear] = useState(currentYear());
   const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -65,16 +75,18 @@ export default function Home() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [m, b, e, p] = await Promise.all([
+      const [m, b, e, p, r] = await Promise.all([
         getMembers(),
         getMemberBalances(),
         getExpenses(year),
         getPayments(year),
+        getRecurringExpenses(),
       ]);
       setMembers(m);
       setBalances(b);
       setExpenses(e);
       setPayments(p);
+      setRecurringExpenses(r);
     } catch (err) {
       toast.error("Error al cargar los datos. Verificá la conexión con Supabase.");
       console.error(err);
@@ -82,6 +94,36 @@ export default function Home() {
       setLoading(false);
     }
   }, [year]);
+
+  async function handleAddRecurring(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newRecurringName.trim();
+    if (!name) return;
+    setSavingRecurring(true);
+    try {
+      await createRecurringExpense(name);
+      setNewRecurringName("");
+      const updated = await getRecurringExpenses();
+      setRecurringExpenses(updated);
+      toast.success("Gasto recurrente agregado");
+    } catch {
+      toast.error("Error al guardar");
+    } finally {
+      setSavingRecurring(false);
+    }
+  }
+
+  async function handleDeleteRecurring(id: string) {
+    if (!confirm("¿Eliminar este gasto recurrente?")) return;
+    try {
+      await deleteRecurringExpense(id);
+      const updated = await getRecurringExpenses();
+      setRecurringExpenses(updated);
+      toast.success("Eliminado");
+    } catch {
+      toast.error("Error al eliminar");
+    }
+  }
 
   useEffect(() => {
     load();
@@ -292,6 +334,12 @@ export default function Home() {
                 {sortedRows.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="recurring">
+              Gastos Recurrentes{" "}
+              <Badge variant="secondary" className="ml-1">
+                {recurringExpenses.length}
+              </Badge>
+            </TabsTrigger>
             <TabsTrigger value="members">
               Miembros{" "}
               <Badge variant="secondary" className="ml-1">
@@ -482,6 +530,55 @@ export default function Home() {
           )}
         </TabsContent>
 
+        {/* Recurring expenses tab */}
+        <TabsContent value="recurring">
+          <div className="space-y-4">
+            <form onSubmit={handleAddRecurring} className="flex items-center gap-2">
+              <Input
+                placeholder="Ej: Combustible tractor, Junta Vecinal..."
+                value={newRecurringName}
+                onChange={(e) => setNewRecurringName(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="submit" size="sm" disabled={savingRecurring || !newRecurringName.trim()}>
+                <Plus className="h-4 w-4 mr-1" /> Agregar
+              </Button>
+            </form>
+
+            {recurringExpenses.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No hay gastos recurrentes. Agregá los conceptos que se repiten habitualmente.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead className="w-[60px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recurringExpenses.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteRecurring(r.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </TabsContent>
+
         {/* Members tab */}
         <TabsContent value="members">
           <div className="flex justify-end mb-4">
@@ -535,6 +632,7 @@ export default function Home() {
           </DialogHeader>
           <ExpenseForm
             members={members}
+            recurringExpenses={recurringExpenses}
             onSuccess={() => { setExpenseDialogOpen(false); load(); }}
             onCancel={() => setExpenseDialogOpen(false)}
           />
