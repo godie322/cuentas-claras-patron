@@ -28,6 +28,7 @@ import type { Member } from "@/types/database";
 const SPLIT_LABELS: Record<string, string> = {
   equal: "Partes iguales",
   custom: "Montos personalizados",
+  sole: "Un solo miembro",
 };
 
 interface ExpenseFormProps {
@@ -44,7 +45,7 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
   const [date, setDate] = useState(today);
   const [paidBy, setPaidBy] = useState(members[0]?.id ?? "");
   const [notes, setNotes] = useState("");
-  const [splitType, setSplitType] = useState<"equal" | "custom">("equal");
+  const [splitType, setSplitType] = useState<"equal" | "custom" | "sole">("equal");
   const [splits, setSplits] = useState<SplitEntry[]>([]);
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -148,7 +149,7 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
           date,
           paid_by: paidBy,
           notes: notes || undefined,
-          split_type: splitType,
+          split_type: splitType === "sole" ? "custom" : splitType,
           created_by: paidBy,
           receipt_urls,
         },
@@ -250,7 +251,7 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
             <Select
               value={splitType}
               onValueChange={(v) => {
-                if (v) setSplitType(v as "equal" | "custom");
+                if (v) setSplitType(v as "equal" | "custom" | "sole");
               }}
             >
               <SelectTrigger className="w-52">
@@ -259,6 +260,7 @@ export function ExpenseForm({ members, onSuccess, onCancel }: ExpenseFormProps) 
               <SelectContent>
                 <SelectItem value="equal">Partes iguales</SelectItem>
                 <SelectItem value="custom">Montos personalizados</SelectItem>
+                <SelectItem value="sole">Un solo miembro</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -137,7 +137,7 @@ export default function Home() {
 
   const autoPaymentRows: AutoPaymentRow[] = expenses.flatMap((e) => {
     const payerSplit = e.splits.find((s) => s.member_id === e.paid_by);
-    if (!payerSplit) return [];
+    if (!payerSplit || payerSplit.amount < 0.01) return [];
     return [
       {
         kind: "auto_payment" as const,
