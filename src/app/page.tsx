@@ -326,8 +326,8 @@ export default function Home() {
 
       {/* Main tabs */}
       <Tabs defaultValue="movements">
-        <div className="flex items-center justify-between">
-          <TabsList>
+        <div className="flex flex-wrap items-center gap-2">
+          <TabsList className="flex-shrink-0">
             <TabsTrigger value="movements">
               Movimientos{" "}
               <Badge variant="secondary" className="ml-1">
@@ -347,15 +347,20 @@ export default function Home() {
               </Badge>
             </TabsTrigger>
           </TabsList>
-          <div className="flex gap-2">
+          <div className="flex w-full gap-2 md:ml-auto md:w-auto">
             <Button
               size="sm"
               variant="outline"
+              className="flex-1 md:flex-none"
               onClick={() => setPaymentDialogOpen(true)}
             >
               <Plus className="h-4 w-4 mr-1" /> Pago
             </Button>
-            <Button size="sm" onClick={() => setExpenseDialogOpen(true)}>
+            <Button
+              size="sm"
+              className="flex-1 md:flex-none"
+              onClick={() => setExpenseDialogOpen(true)}
+            >
               <Plus className="h-4 w-4 mr-1" /> Gasto
             </Button>
           </div>

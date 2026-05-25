@@ -297,7 +297,7 @@ export function ExpenseForm({ members, recurringExpenses, onSuccess, onCancel }:
         />
       ) : (
         <div className="space-y-2">
-          <div className="flex items-center gap-3">
+          <div className="space-y-1">
             <Label>División</Label>
             <Select
               value={splitType}
@@ -305,7 +305,7 @@ export function ExpenseForm({ members, recurringExpenses, onSuccess, onCancel }:
                 if (v) setSplitType(v as "equal" | "custom" | "sole");
               }}
             >
-              <SelectTrigger className="w-52">
+              <SelectTrigger className="w-full">
                 <SelectValue>{SPLIT_LABELS[splitType]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
