@@ -329,19 +329,19 @@ export default function Home() {
         <div className="flex flex-wrap items-center gap-2">
           <TabsList className="flex-shrink-0">
             <TabsTrigger value="movements">
-              <span className="max-md:max-w-16 text-ellipsis">Movimientos{" "}</span>
+              <span className="max-md:max-w-12 overflow-hidden text-ellipsis">Movimientos{" "}</span>
               <Badge variant="secondary" className="ml-1">
                 {sortedRows.length}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="recurring">
-              <span className="max-md:max-w-16 text-ellipsis">Gastos Recurrentes{" "}</span>
+              <span className="max-md:max-w-12 overflow-hidden text-ellipsis">Gastos Recurrentes{" "}</span>
               <Badge variant="secondary" className="ml-1">
                 {recurringExpenses.length}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="members">
-              <span className="max-md:max-w-16 text-ellipsis">Miembros{" "}</span>
+              <span className="max-md:max-w-12 overflow-hidden text-ellipsis">Miembros{" "}</span>
               <Badge variant="secondary" className="ml-1">
                 {members.length}
               </Badge>
